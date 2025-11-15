@@ -1,4 +1,4 @@
-import { format, startOfDay } from 'date-fns';
+import { format, startOfWeek } from 'date-fns';
 import { removeStopwords } from 'stopword';
 import type {
   Message,
@@ -128,42 +128,44 @@ export function analyzeTopPhrases(messages: Message[]): {
 }
 
 /**
- * Analyze message volume over time (daily)
+ * Analyze message volume over time (weekly)
  */
 export function analyzeMessageVolumeOverTime(messages: Message[]): MessageVolumeData[] {
-  const dailyCounts = new Map<string, number>();
+  const weeklyCounts = new Map<string, number>();
 
   messages.forEach(msg => {
-    const dateKey = format(startOfDay(msg.timestamp), 'yyyy-MM-dd');
-    dailyCounts.set(dateKey, (dailyCounts.get(dateKey) || 0) + 1);
+    const weekStart = startOfWeek(msg.timestamp, { weekStartsOn: 1 }); // Monday
+    const dateKey = format(weekStart, 'yyyy-MM-dd');
+    weeklyCounts.set(dateKey, (weeklyCounts.get(dateKey) || 0) + 1);
   });
 
-  return Array.from(dailyCounts.entries())
+  return Array.from(weeklyCounts.entries())
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /**
- * Analyze message volume over time by user (stacked area chart data)
+ * Analyze message volume over time by user (weekly, stacked area chart data)
  */
 export function analyzeUserMessageVolume(messages: Message[]): UserMessageVolumeData[] {
-  const dailyUserCounts = new Map<string, Map<string, number>>();
+  const weeklyUserCounts = new Map<string, Map<string, number>>();
   const allUsers = new Set<string>();
 
   messages.forEach(msg => {
-    const dateKey = format(startOfDay(msg.timestamp), 'yyyy-MM-dd');
+    const weekStart = startOfWeek(msg.timestamp, { weekStartsOn: 1 }); // Monday
+    const dateKey = format(weekStart, 'yyyy-MM-dd');
     allUsers.add(msg.username);
 
-    if (!dailyUserCounts.has(dateKey)) {
-      dailyUserCounts.set(dateKey, new Map());
+    if (!weeklyUserCounts.has(dateKey)) {
+      weeklyUserCounts.set(dateKey, new Map());
     }
 
-    const userCounts = dailyUserCounts.get(dateKey)!;
+    const userCounts = weeklyUserCounts.get(dateKey)!;
     userCounts.set(msg.username, (userCounts.get(msg.username) || 0) + 1);
   });
 
   // Convert to array format
-  return Array.from(dailyUserCounts.entries())
+  return Array.from(weeklyUserCounts.entries())
     .map(([date, userCounts]) => {
       const dataPoint: UserMessageVolumeData = { date };
       allUsers.forEach(user => {
@@ -203,15 +205,58 @@ export function analyzeActivityHeatmap(messages: Message[]): HeatmapData[] {
 }
 
 /**
- * Check if a string is a URL
+ * Check if a string is a URL or URL-related
  */
 function isUrl(str: string): boolean {
-  return str.startsWith('http://') || str.startsWith('https://') || str.includes('.com') || str.includes('.net');
+  // Common URL patterns and indicators
+  const urlPatterns = [
+    'http', 'https', 'www', 'ftp',
+    '.com', '.net', '.org', '.io', '.co', '.uk', '.de', '.fr',
+    'discord', 'discordapp', 'tenor', 'giphy', 'imgur',
+    'cdn', 'attachments', 'media'
+  ];
+
+  // Check if string contains URL patterns
+  if (urlPatterns.some(pattern => str.includes(pattern))) {
+    return true;
+  }
+
+  // Check if it's a long numeric ID (likely from Discord attachments)
+  if (/^\d{10,}$/.test(str)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
- * Check if a phrase contains URL-like content
+ * Check if a phrase contains URL-like content or attachment IDs
  */
 function isUrlPhrase(phrase: string): boolean {
-  return phrase.includes('http') || phrase.includes('www') || phrase.includes('.com');
+  // Common URL and platform patterns
+  const urlPatterns = [
+    'http', 'https', 'www', 'ftp',
+    '.com', '.net', '.org', '.io', '.co',
+    'discord', 'discordapp', 'tenor', 'giphy', 'imgur',
+    'cdn', 'attachments', 'media', 'embed',
+    'view', 'watch', 'channel', 'servers'
+  ];
+
+  // Check for URL patterns
+  if (urlPatterns.some(pattern => phrase.includes(pattern))) {
+    return true;
+  }
+
+  // Check if phrase contains long numeric IDs (Discord attachment IDs)
+  if (/\d{10,}/.test(phrase)) {
+    return true;
+  }
+
+  // Filter out phrases that are mostly just domain extensions
+  const words = phrase.split(' ');
+  if (words.some(word => ['com', 'net', 'org', 'io', 'co', 'uk', 'de', 'fr'].includes(word))) {
+    return true;
+  }
+
+  return false;
 }

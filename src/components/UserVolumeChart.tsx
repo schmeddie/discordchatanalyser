@@ -21,7 +21,7 @@ export function UserVolumeChart({ data }: Props) {
     return Object.keys(firstDataPoint).filter(key => key !== 'date');
   }, [data]);
 
-  // Format data for display
+  // Format data for display (weekly)
   const formattedData = data.map(item => ({
     ...item,
     dateFormatted: format(new Date(item.date), 'MMM dd')
@@ -29,7 +29,7 @@ export function UserVolumeChart({ data }: Props) {
 
   return (
     <div className="card">
-      <h2>👥 Message Volume by User Over Time</h2>
+      <h2>👥 Message Volume by User Over Time (Weekly)</h2>
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={350}>
           <AreaChart data={formattedData}>

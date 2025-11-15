@@ -7,15 +7,15 @@ interface Props {
 }
 
 export function MessageVolumeChart({ data }: Props) {
-  // Format data for display
+  // Format data for display (weekly)
   const formattedData = data.map(item => ({
     ...item,
-    dateFormatted: format(new Date(item.date), 'MMM dd, yyyy')
+    dateFormatted: 'Week of ' + format(new Date(item.date), 'MMM dd, yyyy')
   }));
 
   return (
     <div className="card">
-      <h2>📈 Message Volume Over Time</h2>
+      <h2>📈 Message Volume Over Time (Weekly)</h2>
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={formattedData}>
